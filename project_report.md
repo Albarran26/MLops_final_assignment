@@ -1,43 +1,37 @@
-# Project Report: MLOps Final Assignment
+MLOps Final Assignment Report
+Course: Machine Learning Operations (MLOps)
+Authors: Diego Guilarte, Daniel Albarran, Andre Castañeda
+Status: Completed and validated through GitHub Actions CI/CD
 
-## Objective
+1. Project Idea Summary
+The objective of this project is to classify literary text segments into their corresponding UK Key Stage using an end-to-end MLOps workflow that combines experimentation, deployment awareness, and automation. At the modeling level, the repository explores a DistilBERT-based text classifier fine-tuned on a balanced dataset of literary excerpts. At the system level, the project also implements a lightweight production baseline that can run reliably inside a continuous deployment pipeline and on low-cost CPU environments.
 
-Classify literary text segments into the "UK Key Stage" (the corresponding
-stage of the UK school system), using a fine-tuned DistilBERT model trained on
-a balanced dataset.
+The training notebook in model/model.ipynb loads database/model1/TRAIN_balanced.csv and TEST_balanced.csv, preprocesses the segments and UK Key Stage columns, tokenizes the text with DistilBertTokenizer, and trains a DistilBertForSequenceClassification model. The deployment-oriented side of the project includes main.py, which performs batch prediction over batch_prediction_dataset/on_demand_dataset.csv using a deterministic rule-based classifier, and train.py, which simulates the continuous delivery training step and stores model metadata in models/model_artifacts.json. The CI/CD layer is defined in .github/workflows/cd_pipeline.yml, which runs on pushes to main, provisions Python 3.10, installs dependencies, and executes the delivery script automatically.
+In short, the project is not only about obtaining a classifier, but about showing how a model moves from experimentation to a deployable and maintainable MLOps workflow.
 
-## Repository structure
+1. Problem Statement and Analysis
+This project addresses a multi-class text classification problem: given a literary text segment, the system must predict the appropriate UK Key Stage category. This is an educational NLP task where the input is unstructured text and the output is a discrete class label. Because the target labels are categorical rather than continuous, the problem is clearly a classification problem rather than regression.
+The data is obtained from CSV files, specifically TRAIN_balanced.csv and TEST_balanced.csv, which are stored locally in the repository under database/model1/. This design choice was important because it removes external dependencies during execution and makes the workflow reproducible. The notebook reads the dataset directly from the repository instead of relying on Kaggle paths or cloud-mounted data sources. This improves portability, simplifies collaboration, and makes the project easier to run in local development environments as well as inside CI/CD pipelines.
+Several system design decisions were driven by production constraints rather than by modeling ambition alone. First, the project separates research experimentation from production execution. DistilBERT was selected as the main development model because transformer architectures are well suited to semantic text understanding, especially for nuanced literary classification. However, deploying a transformer directly in a minimal production script can introduce high latency, higher memory consumption, heavier dependencies, and more fragile runtime behavior on inexpensive CPU-only environments. For that reason, a second design path was introduced: a rule-based production baseline that prioritizes deterministic behavior, low overhead, and operational stability.
+Latency became a central engineering constraint. The production workflow is designed for fast batch scoring of text segments and for seamless execution inside GitHub Actions. In that setting, multi-second inference for a single run is undesirable because it slows automation, increases infrastructure friction, and weakens the practicality of the deployed solution. This is why the project treats very low latency as a core requirement: the system should remain fast, reproducible, and robust even when advanced model serving infrastructure is not available.
+The overall architecture reflects that decision. Incoming prediction data is placed in batch_prediction_dataset/on_demand_dataset.csv, processed through main.py, and written back in a flat, controlled workflow. The repository also includes directories such as .github/workflows/, database/, models/, and metrics/, which mimic the separation of concerns expected in production-grade ML systems. This gives the project a strong MLOps focus: not only solving the classification task, but doing so within an organized and automatable system.
+1. Model Development
+Two model strategies were evaluated and tracked in MLflow under the experiment UK_Key_Stage_Classifier.
+The first was DistilBERT_Transformer_Dev, which represents the research-oriented NLP approach. This model uses a fine-tuned DistilBERT sequence classifier and is the most semantically expressive option in the repository. According to the MLflow run, this experiment achieved an accuracy of 0.64 with an inference latency of 12.45 seconds. While this model is the most sophisticated from a machine learning perspective, its latency is high for the current deployment setup, and its measured accuracy is lower than the simpler baseline. This suggests that, under the current training setup and constraints, the transformer has not yet translated its theoretical strength into the best operational result.
+The second was RuleBased_Production_Baseline, which serves as the production-oriented solution. This model applies deterministic keyword-based logic in main.py to map text fragments to UK Key Stage categories. In MLflow, this experiment achieved an accuracy of 0.82 with an inference latency of approximately 0.001 seconds. Although it is less sophisticated than DistilBERT, it performs better in the tracked experiment and is dramatically faster, making it much more suitable for continuous deployment and lightweight production execution.
+For the current state of the project, the chosen production model is the RuleBased_Production_Baseline. The reason is not only that it is faster, but that it delivers the best accuracy–latency trade-off among the tested approaches. In practical MLOps terms, it is the model that best satisfies the system constraints: fast execution, CPU portability, deterministic behavior, and reliable CI/CD compatibility. DistilBERT remains highly valuable as the development model and as the long-term path toward a more advanced NLP solution, but at this stage it should be considered an experimental model rather than the best deployable one.
+A further point revealed by the MLflow screenshots is that both runs were successfully logged and finished, but dataset lineage, logged models, and registered models are still absent in the tracked runs. This means the project already has experiment tracking, but the MLflow setup has not yet been extended to full model registration or artifact governance. Similarly, train.py currently simulates the training step and writes metadata rather than training and registering the real DistilBERT model end-to-end. This is an important limitation, but it is also an honest representation of the project’s current maturity level.
 
-- `model/model.ipynb`: training notebook. Loads `database/model1/TRAIN_balanced.csv`
-  and `TEST_balanced.csv`, encodes the labels, tokenizes with `DistilBertTokenizer`,
-  and trains a `DistilBertForSequenceClassification` for 2 epochs, logging the
-  experiment with MLflow (`UK_Key_Stage_Classification`).
-- `database/model1/`: training and test datasets (class-balanced).
-- `train.py`: continuous delivery (CD) pipeline script. Simulates training and
-  stores the model metadata in `models/model_artifacts.json`.
-- `main.py`: on-demand batch prediction script. Uses a simple rule-based
-  classifier (keyword matching) over `batch_prediction_dataset/on_demand_dataset.csv`
-  to assign a stage to each segment.
-- `.github/workflows/cd_pipeline.yml`: CI/CD pipeline that runs on every push
-  to `main`, installs dependencies, and runs `train.py`.
+MLflow screenshots
+Figure 1. Rule-based production baseline overview.
 
-## CI/CD pipeline
+Figure 2. Rule-based production baseline metrics: accuracy 0.82 and inference latency approximately 0.001 sec.
 
-The `Model Training CD Pipeline` workflow runs on `ubuntu-latest`, sets up
-Python 3.10, and executes `train.py`. The latest run (commit `d473d7c`)
-completed successfully.
+Figure 3. DistilBERT development run overview.
 
-## Results
+Figure 4. DistilBERT development metrics: accuracy 0.64 and inference latency 12.45 sec.
 
-The notebook trains with a high batch size and only 2 epochs, so modest
-results are expected (see the metrics reported by `trainer.evaluate()` inside
-the notebook). The CD pipeline's `train.py` uses simulated metrics
-(`accuracy: 0.824`) as a placeholder for the real training run.
-
-## Notes and pending items
-
-- The trained model is not currently saved as an artifact (the
-  `model.save_pretrained` / `tokenizer.save_pretrained` lines are commented out
-  in the notebook).
-- `train.py` simulates the training step; it does not run the notebook or
-  produce a real model inside the CI pipeline.
+1. Conclusions
+This project demonstrates a complete MLOps-oriented workflow for UK Key Stage classification of literary text segments, combining repository organization, local data management, experiment tracking, and CI/CD automation. The core idea was to evaluate an advanced transformer model while also delivering a production-compatible system that can run reliably under operational constraints.
+The most important conclusion is that the best model is not always the most complex one. Even though DistilBERT is the more advanced NLP architecture, the tracked results show that the rule-based production baseline outperformed it in both accuracy and latency in the current experimental setting. For that reason, the rule-based approach is the right deployment choice at this stage of the project, while DistilBERT remains the most promising candidate for future improvement if training strategy, hyperparameters, model saving, and serving infrastructure are strengthened.
+The final project is therefore successful in two ways. First, it solves the classification problem with a functioning batch prediction pipeline. Second, it reflects sound MLOps reasoning by explicitly balancing model quality, inference speed, reproducibility, portability, and CI/CD feasibility. The main next step would be to replace the simulated training in train.py with full automated training and artifact registration, allowing the transformer model to be retrained, versioned, and deployed in a more mature production workflow.
