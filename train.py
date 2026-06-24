@@ -22,7 +22,7 @@ def train_and_store():
     with open("models/model_artifacts.json", "w") as f:
         json.dump(model_metadata, f, indent=4)
         
-    print("🚀 CD Pipeline success! Model weights simulated and stored in models/ folder.")
+    print("CD Pipeline success! Model weights simulated and stored in models/ folder.")
 
 if __name__ == "__main__":
     train_and_store()
