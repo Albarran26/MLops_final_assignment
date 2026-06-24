@@ -35,3 +35,8 @@ Figure 4. DistilBERT development metrics: accuracy 0.64 and inference latency 12
 This project demonstrates a complete MLOps-oriented workflow for UK Key Stage classification of literary text segments, combining repository organization, local data management, experiment tracking, and CI/CD automation. The core idea was to evaluate an advanced transformer model while also delivering a production-compatible system that can run reliably under operational constraints.
 The most important conclusion is that the best model is not always the most complex one. Even though DistilBERT is the more advanced NLP architecture, the tracked results show that the rule-based production baseline outperformed it in both accuracy and latency in the current experimental setting. For that reason, the rule-based approach is the right deployment choice at this stage of the project, while DistilBERT remains the most promising candidate for future improvement if training strategy, hyperparameters, model saving, and serving infrastructure are strengthened.
 The final project is therefore successful in two ways. First, it solves the classification problem with a functioning batch prediction pipeline. Second, it reflects sound MLOps reasoning by explicitly balancing model quality, inference speed, reproducibility, portability, and CI/CD feasibility. The main next step would be to replace the simulated training in train.py with full automated training and artifact registration, allowing the transformer model to be retrained, versioned, and deployed in a more mature production workflow.
+
+
+GitHub Link 
+https://github.com/Albarran26/MLops_final_assignment 
+
